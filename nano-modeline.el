@@ -1091,5 +1091,112 @@ common action"
             '((nano-modeline-org-agenda-date) " "
               (nano-modeline-window-dedicated))))
 
+(defface nano-modeline--elpaca-finished
+  `((t (:inherit success :background ,(face-background 'nano-subtle nil t))))
+  "Indicates an order is finished in NΛNO modeline.")
+
+(defface nano-modeline--elpaca-busy
+  `((t (:inherit warning :inverse-video t)))
+  "Indicates order's subprocess has not produced output in `elpaca-busy-interval' in NΛNO modeline.")
+
+(defface nano-modeline--elpaca-blocked
+  `((t (:inherit warning :background ,(face-background 'nano-subtle nil t))))
+  "Indicates an order is blocked in NΛNO modeline.")
+
+(defface nano-modeline--elpaca-failed
+  `((t (:inherit error :background ,(face-background 'nano-subtle nil t))))
+  "Indicates an order has failed in NΛNO modeline.")
+
+(defface nano-modeline--elpaca-other
+  `((t (:weight bold :background ,(face-background 'nano-subtle nil t))))
+  "Indicates an order has failed in NΛNO modeline.")
+
+(defcustom nano-modeline-elpaca-status-faces
+  '((blocked  . nano-modeline--elpaca-blocked)
+    (finished . nano-modeline--elpaca-finished)
+    (failed   . nano-modeline--elpaca-failed)
+    (other    . nano-modeline--elpaca-other)
+    (busy     . nano-modeline--elpaca-busy))
+  "Alist mapping order statuses to faces used in NΛNO Modeline."
+  :type '(alist :key-type symbol :options (blocked finished failed other busy) :value-type face))
+
+(defun nano-modeline--elpaca-update-search-query (&optional buffer query)
+  "Update the BUFFER to reflect search QUERY.
+If QUERY is nil, the contents of the minibuffer are used instead."
+  (let ((query (or query (and (minibufferp) (minibuffer-contents-no-properties))
+                   elpaca-ui-search-query elpaca-ui-default-query))
+        (b (or buffer (with-minibuffer-selected-window (current-buffer)) (current-buffer))))
+    (with-current-buffer (get-buffer-create b)
+      (when (string-empty-p query) (setq query elpaca-ui-default-query))
+      (when-let ((parsed (ignore-errors (elpaca-ui--lex-query query)))
+                 (fn (elpaca-ui--search-fn parsed)))
+        (let ((entries (funcall (byte-compile fn))))
+          (when-let ((fn (tabulated-list--get-sorter))) (setq entries (sort entries fn)))
+          (setq elpaca-ui-entries entries
+                tabulated-list-entries
+                (if-let ((elen (length elpaca-ui-entries))
+                         ((or (not elpaca-ui-row-limit) (<= elen elpaca-ui-row-limit))))
+                    elpaca-ui-entries
+                  (cl-subseq elpaca-ui-entries 0 (min elpaca-ui-row-limit elen)))
+                elpaca-ui-search-query query))
+        (elpaca-ui--print)
+        (if (eq elpaca-ui-header-line-function 'elpaca-ui--header-line)
+            (setq header-line-format (funcall elpaca-ui-header-line-function
+                                              elpaca-ui-header-line-prefix))
+          (funcall elpaca-ui-header-line-function elpaca-ui-header-line-prefix))))))
+
+(defun nano-modeline--elpaca-progress-bar ()
+  "Return string indicating state of queues."
+  (cl-loop
+   with counts = nil with total = 0 with finalized = 0
+   with div = (propertize " ⬩ " 'face `(:background ,(face-background 'header-line nil t)))
+   with spc = (propertize " " 'face `(:inherit nano-subtle))
+   for s in '(finished blocked failed other)
+   for plen = (elpaca-alist-get s elpaca--status-counts 0)
+   for count = (propertize (number-to-string plen)
+                           'face `(,(elpaca-alist-get s nano-modeline-elpaca-status-faces '(:weight bold)))
+                           'status s 'help-echo-inhibit-substitution t 'help-echo #'elpaca-ui--pbh)
+   do (setq counts (concat counts spc count) total (+ total plen))
+   (when (memq s '(finished failed)) (cl-incf finalized plen))
+   finally return
+   (let ((percent
+          (propertize
+           (format "%6.2f%%%%"
+                   (* 100 (/ (float finalized) (max total 1))))
+           'face `(:background ,(face-background 'nano-subtle nil t)))))
+     (propertize (concat (when elpaca--waiting elpaca-ui-waiting-indicator)
+                         counts div percent div)))))
+
+
+(defun nano-modeline-elpaca-name (prefix)
+  (propertize prefix
+              'face (nano-modeline-face 'name)))
+
+(defun nano-modeline-elpaca-total (tlen)
+  (propertize (number-to-string tlen)
+              'face (nano-modeline-face 'header)))
+
+(defun nano-modeline-elpaca-progress (str)
+  (propertize str
+              'face (nano-modeline-face 'header)))
+
+(defun nano-modeline-elpaca-query (str)
+  (propertize (concat " " str " ")
+              'face (nano-modeline-face 'secondary)))
+
+(defun nano-modeline-elpaca-mode (&optional prefix)
+  "Set `header-line-format' to reflect query.
+    If PREFIX is non-nil it is displayed before the rest of the
+    header-line."
+  (let ((tlen (length elpaca-ui-entries))
+        (query (or elpaca-ui-search-query "")))
+    (funcall nano-modeline-position
+             `((nano-modeline-buffer-status) " "
+               (nano-modeline-elpaca-name ,prefix) " (⌘"
+               (nano-modeline--elpaca-progress-bar)               
+                (nano-modeline-elpaca-total ,tlen) ")")
+             `((nano-modeline-elpaca-query ,query) " "
+               (nano-modeline-window-dedicated)))))
+
 (provide 'nano-modeline)
 ;;; nano-modeline.el ends here
