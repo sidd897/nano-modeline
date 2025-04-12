@@ -149,7 +149,7 @@
                  (const :tag "Bottom" nano-modeline-footer))
   :group 'nano-modeline)
 
-(defcustom nano-modeline-window-dedicated-symbol '(" " . "")
+(defcustom nano-modeline-window-dedicated-symbol '("  " . "")
   "Pairs of strings showing a window is dedicated or not dedicated"
   :type '(cons (string :tag "Window is dedicated" )
                (string :tag "Window is not dedicated"))
@@ -615,7 +615,7 @@ delay needs to be set to 0."
       (when-let* ((file (buffer-file-name))
                   (branch (substring-no-properties vc-mode 5))
                   (state (vc-state file)))
-        (propertize (format "(%s%s, %s)" (or symbol " ") branch state)
+        (propertize (format "(%s%s ⬩ %s)" (or symbol " ") branch state)
                     'face (nano-modeline-face 'primary)))))
 
 (defun nano-modeline-primary-info (text)
