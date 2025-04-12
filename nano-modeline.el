@@ -812,6 +812,12 @@ delay needs to be set to 0."
   (propertize shell-file-name
               'face (nano-modeline-face 'name)))
 
+(defun nano-modeline-vterm-shell-name ()
+  "vTerm shell name"
+
+  (propertize vterm-shell
+              'face (nano-modeline-face 'name)))
+
 (defun nano-modeline-term-shell-mode ()
   "Term shell mode"
 
@@ -819,6 +825,14 @@ delay needs to be set to 0."
                   "(char mode)"
                 "(line mode)")
                'face (nano-modeline-face 'primary)))
+
+(defun nano-modeline-vterm-shell-mode ()
+  "Term shell mode"
+  
+  (propertize (if vterm-copy-mode
+                  "(copy mode)"
+                "(line mode)")
+              'face (nano-modeline-face 'primary)))
 
 (defun nano-modeline-eat-shell-mode ()
   "Eat shell mode"
@@ -1008,6 +1022,16 @@ common action"
            '((nano-modeline-buffer-status ">_") " "
              (nano-modeline-term-shell-name) " "
              (nano-modeline-term-shell-mode))
+           '((nano-modeline-default-directory) " "
+             (nano-modeline-window-dedicated))))
+
+(defun nano-modeline-vterm-mode ()
+  "Nano line for vterm mode"
+
+  (funcall nano-modeline-position
+           '((nano-modeline-buffer-status "") " "
+             (nano-modeline-vterm-shell-name) " "
+             (nano-modeline-vterm-shell-mode))
            '((nano-modeline-default-directory) " "
              (nano-modeline-window-dedicated))))
 
