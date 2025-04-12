@@ -291,10 +291,10 @@ using the given FACE-PREFIX as the default."
            (width (window-width))
            (outside fringes-outside-margins)
            (left-fringe (if outside -1.0 0.0))
-           (left-margin (if outside 0.0 1.0))
+           ;; (left-margin (if outside 0.0 -1.0))
            (right-fringe (if outside -1.0 0.0))
-           (right-margin (if outside -1.0 0.0))
-           (left-max-size (- width (length right) 2))
+           ;; (right-margin (if outside -1.0 -1.0))
+           (left-max-size (- width (length right) 1))
            (left (if (> (length left) left-max-size)
                      (concat (truncate-string-to-width left left-max-size)
                              (propertize "…" 'face `(:inherit  ,nano-modeline-base-face)))
@@ -302,7 +302,7 @@ using the given FACE-PREFIX as the default."
       (concat (propertize " "
                         'display `(space :align-to (+ left-margin
                                                       (,left-fringe . left-fringe)
-                                                      (,left-margin . left-margin))))
+                                                      (-1.0 . left-margin))))
             (propertize " " 'face 'fringe
                         'display '(space :width (nano-modeline-left-fringe-width)))
             left
@@ -310,7 +310,7 @@ using the given FACE-PREFIX as the default."
                         'face `(:inherit ,nano-modeline-base-face )
                         'display `(space :align-to (- right-margin
                                                       (,right-fringe . right-fringe)
-                                                      (,right-margin . right-margin)
+                                                      (-1.0 . right-margin)
                                                       (nano-modeline-right-fringe-width)
                                                       ,(length right))))
             right
