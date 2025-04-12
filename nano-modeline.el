@@ -1198,5 +1198,25 @@ If QUERY is nil, the contents of the minibuffer are used instead."
              `((nano-modeline-elpaca-query ,query) " "
                (nano-modeline-window-dedicated)))))
 
+;; This helper function hides the modeline for windows having a window below
+;; them.  Run this function every time the window configuration changes (i.e.,
+;; in `window-configuration-change-hook')
+
+;; This  function   was  removed   somewhere  in  v0.3   (not  sure)   ->  see
+;; https://github.com/rougier/nano-modeline/issues/24. I bought it back for my
+;; use case. It does not seem to impact me (in a wrong way).
+(defun nano-modeline-update-windows (&optional _)
+  "Hide the mode line depending on the presence of a window
+below or a buffer local variable 'no-mode-line'."
+  (dolist (window (window-list))
+    (with-selected-window window
+          (with-current-buffer (window-buffer window)
+        (if (or (not (boundp 'no-mode-line)) (not no-mode-line))
+            (setq mode-line-format
+                  (cond ((one-window-p t) (list ""))
+                        ((eq (window-in-direction 'below) (minibuffer-window)) (list ""))
+                        ((not (window-in-direction 'below)) (list ""))
+                        (t nil))))))))
+
 (provide 'nano-modeline)
 ;;; nano-modeline.el ends here
