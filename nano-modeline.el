@@ -945,6 +945,21 @@ delay needs to be set to 0."
            '((nano-modeline-cursor-position)
              (nano-modeline-window-dedicated))))
 
+(defun nano-modeline-org-src-mode ()
+  "Nano line for org mode"
+  (let* ((name (buffer-name))
+         (src-name (nth 4 org-src--babel-info))
+         (start (string-match "\\[.*\\]" name))
+         (end (match-end 0)))
+    (funcall nano-modeline-position
+             `((nano-modeline-buffer-status "") " "
+               (nano-modeline-org-buffer-name
+                ,(concat (substring name 9 start)
+                         (when src-name (concat " › " src-name))))
+               " (" ,(substring name (+ start 2) (- end 2)) ")")
+             '((nano-modeline-cursor-position)
+               (nano-modeline-window-dedicated)))))
+
 (defun nano-modeline-org-mode ()
   "Nano line for org mode"
 
