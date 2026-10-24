@@ -818,6 +818,12 @@ delay needs to be set to 0."
   (propertize vterm-shell
               'face (nano-modeline-face 'name)))
 
+(defun nano-modeline-ghostel-shell-name ()
+  "Ghostel shell name"
+  (let ((path-list (split-string ghostel-shell "/")))
+    (propertize (car (last path-list))
+              'face (nano-modeline-face 'name))))
+
 (defun nano-modeline-term-shell-mode ()
   "Term shell mode"
 
@@ -832,6 +838,11 @@ delay needs to be set to 0."
   (propertize (if vterm-copy-mode
                   "(copy mode)"
                 "(line mode)")
+              'face (nano-modeline-face 'primary)))
+
+(defun nano-modeline-ghostel-shell-mode ()
+  "Term shell mode"
+  (propertize (format "(%s)" ghostel--input-mode)
               'face (nano-modeline-face 'primary)))
 
 (defun nano-modeline-eat-shell-mode ()
@@ -1032,6 +1043,16 @@ common action"
            '((nano-modeline-buffer-status "") " "
              (nano-modeline-vterm-shell-name) " "
              (nano-modeline-vterm-shell-mode))
+           '((nano-modeline-default-directory) " "
+             (nano-modeline-window-dedicated))))
+
+(defun nano-modeline-ghostel-mode ()
+  "Nano line for vterm mode"
+
+  (funcall nano-modeline-position
+           '((nano-modeline-buffer-status "") " "
+             (nano-modeline-ghostel-shell-name) " "
+             (nano-modeline-ghostel-shell-mode))
            '((nano-modeline-default-directory) " "
              (nano-modeline-window-dedicated))))
 
