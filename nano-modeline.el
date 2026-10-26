@@ -56,6 +56,8 @@
 ;; (add-hook 'messages-buffer-mode-hook #'nano-modeline-message-mode)
 ;; (add-hook 'org-capture-mode-hook     #'nano-modeline-org-capture-mode)
 ;; (add-hook 'org-agenda-mode-hook      #'nano-modeline-org-agenda-mode)
+;; (add-hook 'codex-ide-session-mode-hook #'nano-modeline-codex-ide-session-mode)
+;; (add-hook 'codex-ide-status-mode-hook #'nano-modeline-codex-ide-status-mode)
 ;;
 ;;
 ;;; NEWS:
@@ -1233,6 +1235,120 @@ If QUERY is nil, the contents of the minibuffer are used instead."
                 (nano-modeline-elpaca-total ,tlen) ")")
              `((nano-modeline-elpaca-query ,query) " "
                (nano-modeline-window-dedicated)))))
+
+(defun nano-modeline-codex-ide-focus (buffer)
+  "Codex IDE focus buffer for the current session."
+  (let ((context (when (buffer-live-p buffer)
+                   (with-current-buffer buffer
+                     (codex-ide--get-active-buffer-context)))))
+    (propertize
+     (if context
+         (alist-get 'buffer-name context)
+       "")
+     'face (nano-modeline-face 'name))))
+
+(defun nano-modeline-codex-ide-session-summary (session)
+  "Codex IDE token context and model summary for the current session."
+  (let* ((token-context-summary
+          (codex-ide--format-token-usage-context-summary
+           (codex-ide--session-metadata-get session :token-usage)))
+         (model-summary
+          (codex-ide--format-model-summary session))
+         (summary
+          (string-join
+           (delq nil (list token-context-summary model-summary))
+           " ⬩ ")))
+    (if (string-empty-p summary)
+        ""
+      (propertize (concat "(" summary ")")
+                  'face (nano-modeline-face 'primary)))))
+
+(defun nano-modeline-codex-ide-rate-limit-summary (session)
+  "Codex IDE rate-limit summary for the current session."
+  (let ((rate-limit-summary
+         (when session
+           (codex-ide--format-rate-limit-summary
+            (codex-ide--session-metadata-get session :rate-limits)
+            t))))
+    (if rate-limit-summary
+        (propertize rate-limit-summary
+                    'face (nano-modeline-face 'secondary))
+      "")))
+
+(defun nano-modeline--codex-ide-update-header-line
+    (original-function &optional session)
+  "Use nano's header for Codex IDE sessions when its position is header."
+  (setq session (or session
+                    (codex-ide--get-default-session-for-current-buffer)))
+  (let ((buffer (and session (codex-ide-session-buffer session))))
+    (if (and (eq nano-modeline-position #'nano-modeline-header)
+             (buffer-live-p buffer))
+        (with-current-buffer buffer
+          (nano-modeline-codex-ide-session session))
+      (funcall original-function session))))
+
+(defun nano-modeline-codex-ide-session (&optional session)
+  (setq session (or session (codex-ide--get-default-session-for-current-buffer)))
+  (when (and session
+             (buffer-live-p (codex-ide-session-buffer session)))
+    (let ((buffer (codex-ide-session-buffer session)))
+      (funcall nano-modeline-position
+               `((nano-modeline-buffer-status "󰚩") " "
+                 (nano-modeline-codex-ide-focus ,buffer) " "
+                 (nano-modeline-codex-ide-session-summary ,session))
+               `((nano-modeline-codex-ide-rate-limit-summary ,session) " "
+                 (nano-modeline-window-dedicated))))))
+
+(defun nano-modeline-codex-ide-session-mode (&optional session)
+  "Nano line for Codex IDE session mode."
+  (with-eval-after-load 'codex-ide-header
+    (unless (advice-member-p
+             #'nano-modeline--codex-ide-update-header-line
+             'codex-ide--update-header-line)
+      (advice-add 'codex-ide--update-header-line
+                  :around
+                  #'nano-modeline--codex-ide-update-header-line))))
+
+(defun nano-modeline-codex-ide-status-project ()
+  "Codex IDE status project name."
+  (propertize (format "%s"
+                      (codex-ide--project-name
+                       codex-ide-status-mode--directory))
+              'face (nano-modeline-face 'primary)))
+
+(defun nano-modeline-codex-ide-status-count (count)
+  "Codex IDE status section count."
+  (propertize (format "%d %s" count (if (= count 1) "session" "sessions"))
+                'face (nano-modeline-face 'secondary)))
+
+(defun nano-modeline-codex-ide-status-line (count)
+  "Render the nano line for Codex IDE project status mode."
+  (funcall nano-modeline-position
+           '((nano-modeline-buffer-status "󱌣") " "
+             (nano-modeline-codex-ide-status-project))
+           `((nano-modeline-codex-ide-status-count ,count) " "
+             (nano-modeline-window-dedicated))))
+
+(defun nano-modeline--codex-ide-render-status-buffer
+    (original-function directory &rest args)
+  "Install the nano line, then render DIRECTORY's status buffer."
+  (if (eq nano-modeline-position #'nano-modeline-header)
+      (let* ((inhibit-read-only t)
+             (count (apply
+                     #'codex-ide-status-mode--render-sections directory args)))
+        (nano-modeline-codex-ide-status-line count)
+        (goto-char (point-min)))
+    (apply original-function directory args)))
+
+(defun nano-modeline-codex-ide-status-mode ()
+  "Install nano-modeline rendering for Codex IDE project status mode."
+  (with-eval-after-load 'codex-ide-status-mode
+    (unless (advice-member-p
+             #'nano-modeline--codex-ide-render-status-buffer
+             'codex-ide-status-mode--render-buffer)
+      (advice-add 'codex-ide-status-mode--render-buffer
+                  :around
+                  #'nano-modeline--codex-ide-render-status-buffer))))
 
 ;; This helper function hides the modeline for windows having a window below
 ;; them.  Run this function every time the window configuration changes (i.e.,
